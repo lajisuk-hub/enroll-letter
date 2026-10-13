@@ -94,15 +94,10 @@ export default function Letter({ code }) {
           <div className="notice">2027 NEWS</div>
           <h1>2027년 소식이<br />도착하였습니다</h1>
           <div className="from">{rec.center}에서 {rec.child} 가족에게</div>
-          <button className={`env-wrap${opening ? ' opening' : ''}`} onClick={openLetter} aria-label="편지 열기">
-            <div className="env">
-              <div className="back" />
-              <div className="paper">{rec.child}에게</div>
-              <div className="front" />
-              <div className="flap" />
-              <div className="seal">2027</div>
-              <div className="to">To. {rec.child} 가족<br /><span style={{ fontSize: 17 }}>From. {rec.center}</span></div>
-            </div>
+          <button className={`env2${opening ? ' opening' : ''}`} onClick={openLetter} aria-label="편지 열기">
+            <img className="peek" src="/img/paper-thumb.webp" alt="" />
+            <img className="envimg" src="/img/envelope.webp" alt="편지 봉투" />
+            <span className="glow" />
           </button>
           {!opening ? <button className="btn tap" onClick={openLetter}>💌 편지 열어 보기</button> : <div className="from">편지를 여는 중…</div>}
         </div>
@@ -113,9 +108,13 @@ export default function Letter({ code }) {
           <div className="view">
             <GrowthFilm photos={rec.photos} child={rec.child} />
             <div className="letter-paper">
-              {paras.map((p, i) => (
-                <p key={i} className={`${i < shown ? 'on' : ''}${i === 0 ? ' first' : ''}${i === paras.length - 1 ? ' sign' : ''}`}>{p}</p>
-              ))}
+              <img className="lp-top" src="/img/paper-top.webp" alt="" />
+              <div className="lp-body">
+                {paras.map((p, i) => (
+                  <p key={i} className={`${i < shown ? 'on' : ''}${i === 0 ? ' first' : ''}${i === paras.length - 1 ? ' sign' : ''}`}>{p}</p>
+                ))}
+              </div>
+              <img className="lp-bottom" src="/img/paper-bottom.webp" alt="" />
             </div>
             <div className="cta" style={{ background: 'var(--paper)' }}>
               {shown >= paras.length ? (
