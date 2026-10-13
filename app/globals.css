@@ -136,7 +136,8 @@ textarea { min-height: 96px; resize: vertical; line-height: 1.6; }
 .env-wrap.opening .flap { transform: rotateX(180deg); z-index: 1; }
 .env-wrap.opening .seal, .env-wrap.opening .to { opacity: 0; }
 .env-wrap.opening .paper { transform: translateY(-64%); z-index: 1; }
-.tap { animation: pulse 1.8s ease-in-out infinite; max-width: 320px; width: 84vw; }
+.tap { animation: pulse 1.8s ease-in-out infinite; max-width: 320px; width: 84vw; flex: none; }
+.stage > * { flex: none; }
 @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
 .sparkle { position: absolute; color: var(--gold); opacity: 0; animation: twinkle 4s ease-in-out infinite; pointer-events: none; font-size: 14px; }
 @keyframes twinkle { 0%,100% { opacity: 0; transform: translateY(0); } 50% { opacity: .9; transform: translateY(-10px); } }

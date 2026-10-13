@@ -2,6 +2,8 @@
 // 서명이 들어간 재원신청서를 A4 한 장 PDF로 만든다 (화면에 안 보이는 곳에 그려서 찍기).
 const esc = (s) => String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+const koDate = (v) => { const [y, m, d] = String(v || '').split('-'); return y && m && d ? `${y}년 ${Number(m)}월 ${Number(d)}일` : v; };
+
 export function todayKo() {
   const t = new Date();
   return `${t.getFullYear()}년 ${t.getMonth() + 1}월 ${t.getDate()}일`;
@@ -20,7 +22,7 @@ export async function makeApplyPdf({ rec, form, sign }) {
     <div style="height:3px;background:#c8735f;margin:18px 0 26px"></div>
     <table style="width:100%;border-collapse:collapse;font-size:17px">
       ${row('원아 이름', form.child)}
-      ${row('생년월일', form.birth)}
+      ${row('생년월일', koDate(form.birth))}
       ${row('보호자 이름', form.parent)}
       ${row('아이와의 관계', form.relation)}
       ${row('연락처', form.phone)}

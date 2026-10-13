@@ -188,7 +188,8 @@ export default function Maker() {
             부모님은 <b>“2027년 소식이 도착하였습니다”</b> 편지를 열어 아이의 성장 영상과 편지를 보고,
             재원신청서에 서명하면 <b>PDF가 원장님 메일로</b> 도착합니다.
           </p>
-          <Nav nextLabel={d.center ? `${d.center} 이어서 만들기` : '시작하기'} onNext={() => (d.center ? nextChild() : go(1))} />
+          <Nav nextLabel={d.child && !d.code ? `${d.child} 편지 이어서 만들기` : '시작하기'} onNext={() => (d.code ? nextChild() : go(1))} />
+          {d.child && !d.code ? <button className="skip" onClick={nextChild}>다른 아이로 새로 시작하기</button> : null}
           {made.length ? (
             <div style={{ marginTop: 22 }}>
               <div className="field"><label>이 컴퓨터에서 만든 편지 ({made.length}개)</label>
