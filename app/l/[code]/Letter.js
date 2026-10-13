@@ -38,7 +38,7 @@ export default function Letter({ code }) {
   const openLetter = () => {
     if (opening) return;
     setOpening(true);
-    setTimeout(() => { setScene('film'); top(); startReveal(); }, 2000);
+    setTimeout(() => { setScene('film'); top(); startReveal(); }, 3000);
   };
 
   const startReveal = () => {
@@ -87,16 +87,18 @@ export default function Letter({ code }) {
   return (
     <>
       {scene === 'arrive' && (
-        <div className="stage arrive">
+        <div className={`stage arrive${opening ? ' is-opening' : ''}`}>
           {[...Array(9)].map((_, i) => (
             <span key={i} className="sparkle" style={{ left: `${8 + i * 10.5}%`, top: `${10 + ((i * 37) % 70)}%`, animationDelay: `${(i * 0.7) % 4}s` }}>✦</span>
           ))}
           <div className="notice">2027 NEWS</div>
           <h1>2027년 소식이<br />도착하였습니다</h1>
           <div className="from">{rec.center}에서 {rec.child} 가족에게</div>
-          <button className={`env2${opening ? ' opening' : ''}`} onClick={openLetter} aria-label="편지 열기">
-            <img className="peek" src="/img/paper-thumb.webp" alt="" />
-            <img className="envimg" src="/img/envelope.webp" alt="편지 봉투" />
+          <button className={`env3${opening ? ' opening' : ''}`} onClick={openLetter} aria-label="편지 열기">
+            <img className="e-flap" src="/img/env-open-flap.webp" alt="" />
+            <img className="e-paper" src="/img/paper-thumb.webp" alt="" />
+            <img className="e-body" src="/img/env-open-body.webp" alt="" />
+            <img className="e-closed" src="/img/envelope.webp" alt="편지 봉투" />
             <span className="glow" />
           </button>
           {!opening ? <button className="btn tap" onClick={openLetter}>💌 편지 열어 보기</button> : <div className="from">편지를 여는 중…</div>}
