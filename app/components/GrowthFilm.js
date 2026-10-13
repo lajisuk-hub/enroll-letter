@@ -41,10 +41,12 @@ export default function GrowthFilm({ photos, child, onEnd, year = '2026' }) {
       const total = n * HOLD + (n - 1) * MORPH;
       let start = 0, lastCap = -1, done = false;
       setReady(true);
-      const frame = (now) => {
+      const frame = () => {
         if (stop) return;
+        // ⚠ rAF가 넘겨주는 시각은 performance.now()보다 이를 수 있어(음수 → 사진 번호 -1로 멈춤) 직접 잰다
+        const now = performance.now();
         if (!start) start = now;
-        const s = Math.min((now - start) / 1000, total);
+        const s = Math.max(0, Math.min((now - start) / 1000, total));
         const seg = HOLD + MORPH;
         let i = Math.min(n - 1, Math.floor(s / seg));
         let t = Math.max(0, (s - i * seg - HOLD) / MORPH);
@@ -59,7 +61,7 @@ export default function GrowthFilm({ photos, child, onEnd, year = '2026' }) {
         raf = requestAnimationFrame(frame);
       };
       // 첫 장은 곧바로 그려 둔다 (화면 갱신 신호가 늦게 와도 검은 화면이 안 보이게)
-      frame(performance.now());
+      frame();
     })();
     return () => { stop = true; cancelAnimationFrame(raf); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
