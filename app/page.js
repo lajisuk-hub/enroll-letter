@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import GrowthFilm from './components/GrowthFilm';
 import { shrinkImage } from './lib/image';
+import { findFace } from './lib/face';
 import {
   FIRST_TAGS, GROW_TAGS, PLAN_SAMPLES, VISION_SAMPLE, MERIT_SAMPLES,
   PHOTO_LABELS, PHOTO_CAPTIONS, fallbackLetter,
@@ -71,7 +72,11 @@ export default function Maker() {
     try {
       setBusy('photo' + i);
       const src = await shrinkImage(file);
-      set((prev) => ({ photos: prev.photos.map((p, j) => (j === i ? { ...p, src } : p)) }));
+      set((prev) => ({ photos: prev.photos.map((p, j) => (j === i ? { ...p, src, face: null } : p)) }));
+      // 얼굴 위치를 찾아 두면 부모님 화면에서 얼굴이 서서히 자라나듯 변한다
+      setBusy('face' + i);
+      const face = await findFace(src);
+      set((prev) => ({ photos: prev.photos.map((p, j) => (j === i && p.src === src ? { ...p, face } : p)) }));
     } catch (e) {
       setMsg({ err: e.message, ok: '' });
     } finally {
@@ -318,13 +323,15 @@ export default function Maker() {
       {step === 8 && (
         <div className="card">
           <h2>{d.child || '아이'}의 사진 4장을 넣어 주세요</h2>
-          <p className="help">입학했을 때부터 지금까지 순서대로 넣으면, 사진이 겹쳐지며 자라는 영상이 돼요. (최소 2장)</p>
+          <p className="help">입학했을 때부터 지금까지 순서대로 넣으면, 아이 얼굴이 같은 자리에서 서서히 자라나는 영상이 돼요. (최소 2장)</p>
+          <p className="help" style={{ fontSize: 13 }}>💡 얼굴이 정면으로 크게 나온 사진일수록 자연스러워요. 얼굴을 못 찾은 사진은 부드럽게 겹쳐서 넘어가요.</p>
           <div className="photos">
             {d.photos.map((p, i) => (
               <div key={i} className={`slot${p.src ? ' filled' : ''}`}>
                 <label className="pic">
                   <span className="num">{i + 1}</span>
                   {p.src ? <img src={p.src} alt="" /> : <span>{busy === 'photo' + i ? '줄이는 중…' : <>📷<br />{PHOTO_LABELS[i]}<br />사진 고르기</>}</span>}
+                  {p.src ? <span className="facetag">{busy === 'face' + i ? '얼굴 찾는 중…' : p.face ? '😊 얼굴 맞춤' : '얼굴을 못 찾았어요'}</span> : null}
                   <input type="file" accept="image/*" hidden onChange={(e) => { pickPhoto(i, e.target.files?.[0]); e.target.value = ''; }} />
                 </label>
                 <input type="text" value={p.caption} placeholder="사진 아래 글귀"
