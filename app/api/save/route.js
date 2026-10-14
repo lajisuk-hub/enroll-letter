@@ -1,6 +1,7 @@
 // 원장님이 만든 편지(기관 정보·편지글·사진 4장)를 보관함에 넣고 짧은 번호를 돌려준다.
 // 이미 만든 링크를 고칠 때는 code + editKey를 같이 보내면 같은 주소에 덮어쓴다.
 import { makeCode, validCode, exists, readRecord, writeRecord, okEmail } from '../../lib/store';
+import { mergeSubs } from '../../lib/push';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -25,6 +26,7 @@ export async function POST(req) {
 
     let code = '';
     let editKey = '';
+    let oldPush = [];
     if (body.code && validCode(body.code)) {
       const old = await readRecord(body.code);
       if (!old) return Response.json({ error: '고칠 링크를 찾지 못했어요.' }, { status: 404 });
@@ -33,6 +35,7 @@ export async function POST(req) {
       }
       code = body.code;
       editKey = old.editKey;
+      oldPush = old.push || [];
     } else {
       for (let i = 0; i < 5; i += 1) {
         const c = makeCode();
@@ -42,7 +45,9 @@ export async function POST(req) {
       editKey = makeCode(12);
     }
 
-    await writeRecord(code, { ...data, editKey, savedAt: new Date().toISOString() });
+    const push = mergeSubs(oldPush, body.push ? [body.push] : []); // 고쳐 저장해도 알림 기기는 그대로
+    const { push: _ignore, ...clean } = data;
+    await writeRecord(code, { ...clean, push, editKey, savedAt: new Date().toISOString() });
     return Response.json({ code, editKey });
   } catch (err) {
     console.error(err);

@@ -13,6 +13,6 @@ export async function GET(req) {
   if (!rec) return Response.json({ error: '편지를 찾지 못했어요.' }, { status: 404 });
   const key = new URL(req.url).searchParams.get('k');
   if (key && key === rec.editKey) return Response.json({ data: rec }); // 원장님이 고치려고 불러올 때
-  const { email, editKey, ...safe } = rec;
+  const { email, editKey, push, ...safe } = rec;
   return Response.json({ data: safe });
 }

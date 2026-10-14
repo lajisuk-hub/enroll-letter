@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import GrowthFilm from './components/GrowthFilm';
 import { shrinkImage } from './lib/image';
 import { findFace } from './lib/face';
+import { pushSupported, iosNeedsInstall, savedSub, enablePush, registerPush } from './lib/pushClient';
 import {
   FIRST_TAGS, GROW_TAGS, PLAN_SAMPLES, VISION_SAMPLE, MERIT_SAMPLES,
   PHOTO_LABELS, PHOTO_CAPTIONS, fallbackLetter,
@@ -36,6 +37,7 @@ export default function Maker() {
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState({ err: '', ok: '' });
   const [ready, setReady] = useState(false);
+  const [alarm, setAlarm] = useState({ on: false, busy: false, ok: '', err: '' });
   const set = (patch) => setD((prev) => ({ ...prev, ...(typeof patch === 'function' ? patch(prev) : patch) }));
 
   // 기관 정보·작성 중인 내용 불러오기
@@ -44,6 +46,7 @@ export default function Maker() {
     const draft = lsGet(DRAFT_KEY) || {};
     setD((prev) => ({ ...prev, ...org, ...draft }));
     setMade(lsGet(MADE_KEY) || []);
+    setAlarm((a) => ({ ...a, on: !!savedSub() && typeof Notification !== 'undefined' && Notification.permission === 'granted' }));
     setReady(true);
   }, []);
 
@@ -113,6 +116,7 @@ export default function Maker() {
       };
       const body = { data };
       if (!asNew && d.code && d.editKey) { body.code = d.code; body.editKey = d.editKey; }
+      if (alarm.on && savedSub()) body.push = savedSub(); // 알림 켠 기기는 새 편지에도 자동으로
       const r = await fetch('/api/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || '링크를 만들지 못했어요.');
@@ -143,6 +147,21 @@ export default function Maker() {
       setMsg({ err: '불러오지 못했어요: ' + (e.message || ''), ok: '' });
     } finally {
       setBusy('');
+    }
+  };
+
+  // 「알림 받기」: 이 기기를 이 컴퓨터에서 만든 모든 편지에 등록하고 시험 알림을 보낸다
+  const turnOnAlarm = async () => {
+    setAlarm((a) => ({ ...a, busy: true, ok: '', err: '' }));
+    try {
+      const sub = await enablePush();
+      const list = lsGet(MADE_KEY) || [];
+      const items = [...(d.code && d.editKey ? [{ code: d.code, editKey: d.editKey }] : []), ...list.filter((m) => m.code !== d.code)]
+        .map((m) => ({ code: m.code, editKey: m.editKey }));
+      const r = await registerPush(sub, items, true);
+      setAlarm({ on: true, busy: false, err: '', ok: `알림을 켰어요! (편지 ${r.added}개) 방금 시험 알림을 보냈어요 — 화면 오른쪽 아래(휴대폰은 위쪽)에 떴는지 확인해 주세요.` });
+    } catch (e) {
+      setAlarm((a) => ({ ...a, busy: false, err: e.message || '알림을 켜지 못했어요.' }));
     }
   };
 
@@ -385,6 +404,23 @@ export default function Maker() {
               </div>
               <p className="help" style={{ marginTop: 14 }}>내용을 고쳤다면 아래 단추로 <b>같은 링크에 반영</b>할 수 있어요.</p>
               <button className="btn small ghost" disabled={busy === 'save'} onClick={() => save(false)}>고친 내용 같은 링크에 반영하기</button>
+              <div className="alarm">
+                <b>🔔 신청서가 오면 알림 받기</b>
+                <p className="help" style={{ margin: '4px 0 10px' }}>
+                  부모님이 재원신청서나 답신을 보내면 <b>이 컴퓨터(또는 휴대폰)</b>에 알림이 떠요. 기기마다 한 번만 켜면 앞으로 만드는 편지에도 계속 적용돼요.
+                </p>
+                {iosNeedsInstall() ? (
+                  <p className="help">아이폰은 먼저 사파리 아래 <b>공유(□↑) → 「홈 화면에 추가」</b>를 누르고, 홈 화면에 생긴 「재원신청서」로 들어와 이 단추를 눌러 주세요.</p>
+                ) : !pushSupported() ? (
+                  <p className="help">이 브라우저는 알림을 지원하지 않아요. 크롬이나 엣지로 열어 주세요.</p>
+                ) : (
+                  <button className={`btn small${alarm.on ? ' line' : ' green'}`} disabled={alarm.busy} onClick={turnOnAlarm}>
+                    {alarm.busy ? '켜는 중…' : alarm.on ? '✓ 알림 켜짐 · 시험 알림 다시 보내기' : '🔔 이 기기로 알림 받기'}
+                  </button>
+                )}
+                {alarm.ok ? <div className="ok">{alarm.ok}</div> : null}
+                {alarm.err ? <div className="err">{alarm.err}</div> : null}
+              </div>
             </>
           )}
           {msg.err ? <div className="err">{msg.err}</div> : null}

@@ -1,6 +1,7 @@
 // 학부모님이 쓴 재원신청서 PDF를 원장님 메일로 보낸다 (Brevo).
 // 받는 주소는 브라우저가 아니라 보관함에 저장된 원장님 메일을 쓴다 — 아무 주소로나 보내지 못하게.
-import { validCode, readRecord } from '../../lib/store';
+import { validCode, readRecord, writeRecord } from '../../lib/store';
+import { sendPush, mailUrl } from '../../lib/push';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -47,9 +48,28 @@ export async function POST(req) {
         attachment: [{ content: b.pdfBase64, name: `2027_${leave ? '재원답신' : '재원신청서'}_${child}.pdf` }],
       }),
     });
-    if (r.status >= 200 && r.status < 300) return Response.json({ ok: true });
-    const t = await r.text();
-    console.error('Brevo 오류', t.slice(0, 300));
+    const mailed = r.status >= 200 && r.status < 300;
+    if (!mailed) console.error('Brevo 오류', (await r.text()).slice(0, 300));
+
+    // 원장님이 「알림 받기」를 켜 둔 기기로 알림 (메일과 별개 — 실패해도 신청은 그대로)
+    if (rec.push?.length) {
+      try {
+        const who = `${child} ${b.relation || '보호자'} ${parent}님`;
+        const res = await sendPush(rec.push, {
+          title: leave ? '📮 재원 어려움 답신이 도착했어요' : '🔔 재원신청서가 도착했어요',
+          body: `${who}이 ${leave ? '답신을' : '2027 재원신청서를'} 보냈어요.${mailed ? ' 메일함에서 확인해 주세요.' : ''}`,
+          url: mailUrl(rec.email),
+        });
+        if (res.dead.length) {
+          const fresh = await readRecord(b.code);
+          if (fresh) await writeRecord(b.code, { ...fresh, push: (fresh.push || []).filter((x) => !res.dead.includes(x.endpoint)) });
+        }
+      } catch (e) {
+        console.error('알림 오류', e?.message);
+      }
+    }
+
+    if (mailed) return Response.json({ ok: true });
     return Response.json({ error: '메일 전송 실패' }, { status: 502 });
   } catch (err) {
     return Response.json({ error: String(err?.message || err) }, { status: 500 });
