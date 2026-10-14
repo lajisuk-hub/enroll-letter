@@ -22,14 +22,19 @@ export async function POST(req) {
 
     const child = String(b.child || rec.child).slice(0, 30);
     const parent = String(b.parent || '').slice(0, 30);
-    const subject = `[2027 재원신청서] ${child} (보호자 ${parent})`;
+    const leave = b.mode === 'leave';
+    const subject = leave
+      ? `[2027 재원 어려움 답신] ${child} (보호자 ${parent})`
+      : `[2027 재원신청서] ${child} (보호자 ${parent})`;
+    const who = `${child} 보호자 ${parent}${b.relation ? `(${b.relation})` : ''}님이`;
     const text =
       `${rec.center} 원장님, 안녕하세요.\n\n` +
-      `${child} 보호자 ${parent}${b.relation ? `(${b.relation})` : ''}님이 2027년 재원신청서를 보내셨습니다.\n` +
+      (leave ? `${who} 2027년 재원이 어렵다는 답신을 보내셨습니다.\n` : `${who} 2027년 재원신청서를 보내셨습니다.\n`) +
       (b.phone ? `· 연락처: ${b.phone}\n` : '') +
-      (b.memo ? `· 남기신 말씀: ${String(b.memo).slice(0, 500)}\n` : '') +
+      (leave && b.reason ? `· 사유 및 답신:\n${String(b.reason).slice(0, 2000)}\n` : '') +
+      (!leave && b.memo ? `· 남기신 말씀: ${String(b.memo).slice(0, 500)}\n` : '') +
       `· 작성 시각: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}\n\n` +
-      `서명이 담긴 신청서 PDF를 첨부했습니다.\n\n— 감동의 재원신청서`;
+      (leave ? '답신 내용을 PDF로 첨부했습니다.' : '서명이 담긴 신청서 PDF를 첨부했습니다.') + `\n\n— 감동의 재원신청서`;
 
     const r = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
@@ -39,7 +44,7 @@ export async function POST(req) {
         to: [{ email: rec.email }],
         subject,
         textContent: text,
-        attachment: [{ content: b.pdfBase64, name: `2027_재원신청서_${child}.pdf` }],
+        attachment: [{ content: b.pdfBase64, name: `2027_${leave ? '재원답신' : '재원신청서'}_${child}.pdf` }],
       }),
     });
     if (r.status >= 200 && r.status < 300) return Response.json({ ok: true });

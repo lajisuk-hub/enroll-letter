@@ -13,8 +13,9 @@ export default function Letter({ code }) {
   const [err, setErr] = useState('');
   const [opening, setOpening] = useState(false);
   const [shown, setShown] = useState(0);
-  const [form, setForm] = useState({ child: '', birth: '', parent: '', relation: '', phone: '', memo: '' });
+  const [form, setForm] = useState({ child: '', birth: '', parent: '', relation: '', phone: '', memo: '', reason: '' });
   const [sign, setSign] = useState('');
+  const [mode, setMode] = useState('stay'); // stay: 재원 신청 / leave: 재원이 어려움(사유 답신)
   const [result, setResult] = useState({ mailed: false, url: '', note: '' });
   const timers = useRef([]);
   const setF = (patch) => setForm((prev) => ({ ...prev, ...patch }));
@@ -57,10 +58,10 @@ export default function Letter({ code }) {
     top();
     let made;
     try {
-      made = await makeApplyPdf({ rec, form, sign });
+      made = await makeApplyPdf({ rec, form, sign, mode });
     } catch (e) {
       setErr('신청서 파일을 만들지 못했어요. 다시 시도해 주세요. (' + e.message + ')');
-      setScene('form');
+      setScene(mode === 'leave' ? 'decline' : 'form');
       return;
     }
     const url = URL.createObjectURL(made.blob);
@@ -69,11 +70,11 @@ export default function Letter({ code }) {
       const r = await fetch('/api/send', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ code, pdfBase64: made.base64, ...form }),
+        body: JSON.stringify({ code, pdfBase64: made.base64, mode, ...form }),
       });
       mailed = r.ok;
     } catch (e) { mailed = false; }
-    setResult({ mailed, url, note: mailed ? '' : '전송이 잠시 원활하지 않아요. 아래 단추로 신청서를 저장해 담임 선생님께 전해 주세요.' });
+    setResult({ mailed, url, note: mailed ? '' : `전송이 잠시 원활하지 않아요. 아래 단추로 ${mode === 'leave' ? '답신' : '신청서'}을 저장해 담임 선생님께 전해 주세요.` });
     setScene('done');
   };
 
@@ -83,6 +84,7 @@ export default function Letter({ code }) {
   }
 
   const canSubmit = form.child.trim() && form.parent.trim() && form.relation && sign;
+  const canDecline = form.child.trim() && form.parent.trim() && form.relation && form.reason.trim();
 
   return (
     <>
@@ -154,7 +156,8 @@ export default function Letter({ code }) {
               재원을 희망하시면 신청서를 작성해 주세요.
               {rec.deadline ? <><br /><span style={{ color: 'var(--soft)', fontSize: 14 }}>신청 마감: {fmtDate(rec.deadline)}</span></> : null}
             </div>
-            <button className="btn" style={{ width: '100%' }} onClick={() => { setScene('form'); top(); }}>재원신청서 작성하기</button>
+            <button className="btn" style={{ width: '100%' }} onClick={() => { setMode('stay'); setScene('form'); top(); }}>재원신청서 작성하기</button>
+            <button className="btn ghost" style={{ width: '100%', marginTop: 10 }} onClick={() => { setMode('leave'); setErr(''); setScene('decline'); top(); }}>재원이 어려울 것 같습니다</button>
             <div style={{ textAlign: 'center' }}><button className="skip" onClick={() => { setScene('film'); setShown(paras.length); top(); }}>← 편지 다시 보기</button></div>
           </div>
         </div>
@@ -196,15 +199,52 @@ export default function Letter({ code }) {
         </div>
       )}
 
-      {scene === 'sending' && <div className="stage done"><div className="loading">신청서를 정성껏 담고 있어요…</div></div>}
+      {scene === 'decline' && (
+        <div className="stage">
+          <div className="apply">
+            <div className="apply-head">
+              <div className="kicker">2027 {rec.center}</div>
+              <h1>2027년,<br />{rec.center}의 포부</h1>
+            </div>
+            {rec.vision ? <div className="vision">{rec.vision}</div> : null}
+            <div className="sec-t">작성해 주시면 관련 내용이 어린이집 메일로 전달됩니다</div>
+            <div className="invite">관련 사유를 직접 작성해 주시면<br />운영에 큰 도움이 될 것 같습니다.</div>
+            <div className="form-card">
+              <div className="field"><label>아이 이름</label><input type="text" value={form.child} onChange={(e) => setF({ child: e.target.value })} /></div>
+              <div className="field"><label>보호자 이름</label><input type="text" value={form.parent} onChange={(e) => setF({ parent: e.target.value })} placeholder="예: 김민지" /></div>
+              <div className="field"><label>아이와의 관계</label>
+                <div className="chips">{RELATIONS.map((r) => <button key={r} className={`chip${form.relation === r ? ' on' : ''}`} onClick={() => setF({ relation: r })}>{r}</button>)}</div>
+              </div>
+              <div className="field"><label>연락처 (선택)</label><input type="tel" value={form.phone} onChange={(e) => setF({ phone: e.target.value })} placeholder="010-0000-0000" /></div>
+              <div className="field"><label>사유 및 어린이집에 드리고 싶은 답신</label><textarea rows={6} value={form.reason} onChange={(e) => setF({ reason: e.target.value })} placeholder="예: 이사를 가게 되어 재원이 어렵습니다. 그동안 정말 감사했습니다." /></div>
+              {err ? <div className="err">{err}</div> : null}
+              <div className="nav">
+                <button className="btn ghost" onClick={() => { setScene('apply'); top(); }}>이전</button>
+                <button className="btn green" disabled={!canDecline} onClick={submit}>답신 보내기</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {scene === 'sending' && <div className="stage done"><div className="loading">{mode === 'leave' ? '답신을' : '신청서를'} 정성껏 담고 있어요…</div></div>}
 
       {scene === 'done' && (
         <div className="stage done">
           <div className="mark">✓</div>
-          <h1>재원신청서를<br />{rec.center}에 전달하겠습니다~</h1>
-          <p>{form.child}와 함께할 2027년이 벌써 기다려집니다.<br />소중한 마음 고맙습니다.</p>
+          {mode === 'leave' ? (
+            <>
+              <h1>답신을<br />{rec.center}에 전달하겠습니다~</h1>
+              <p>소중한 말씀 고맙습니다.<br />{form.child}와 함께한 시간을 오래 기억하겠습니다.</p>
+            </>
+          ) : (
+            <>
+              <h1>재원신청서를<br />{rec.center}에 전달하겠습니다~</h1>
+              <p>{form.child}와 함께할 2027년이 벌써 기다려집니다.<br />소중한 마음 고맙습니다.</p>
+            </>
+          )}
           {result.note ? <p style={{ color: '#b3402a' }}>{result.note}</p> : null}
-          {result.url ? <a className={`btn${result.mailed ? ' line' : ''}`} href={result.url} download={`2027_재원신청서_${form.child}.pdf`}>📥 내 신청서 저장하기</a> : null}
+          {result.url ? <a className={`btn${result.mailed ? ' line' : ''}`} href={result.url} download={`2027_${mode === 'leave' ? '재원답신' : '재원신청서'}_${form.child}.pdf`}>📥 내 {mode === 'leave' ? '답신' : '신청서'} 저장하기</a> : null}
         </div>
       )}
     </>
