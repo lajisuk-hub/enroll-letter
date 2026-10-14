@@ -45,6 +45,7 @@ export default function Maker() {
   const [msg, setMsg] = useState({ err: '', ok: '' });
   const [ready, setReady] = useState(false);
   const [chromePop, setChromePop] = useState(''); // '' 안 띄움 / 'ok' 크롬(처음 한 번) / 'no' 크롬 아님(매번)
+  const [copied, setCopied] = useState(''); // '' / 'ok' / 'fail'
   const [alarm, setAlarm] = useState({ on: false, busy: false, ok: '', err: '' });
   const set = (patch) => setD((prev) => ({ ...prev, ...(typeof patch === 'function' ? patch(prev) : patch) }));
 
@@ -196,7 +197,15 @@ export default function Maker() {
 
   const closeChromePop = () => { if (chromePop === 'ok') lsSet(CHROME_SEEN, 1); setChromePop(''); };
   const copySite = async () => {
-    try { await navigator.clipboard.writeText(window.location.origin); setChromePop('copied'); } catch (e) { setChromePop('copyfail'); }
+    const url = window.location.origin;
+    try { await navigator.clipboard.writeText(url); setCopied('ok'); return; } catch (e) { /* 앱 안 브라우저는 아래 방식으로 */ }
+    try {
+      const t = document.createElement('textarea');
+      t.value = url; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select(); t.setSelectionRange(0, url.length);
+      const ok = document.execCommand('copy'); t.remove();
+      setCopied(ok ? 'ok' : 'fail');
+    } catch (e) { setCopied('fail'); }
   };
 
   return (
@@ -207,21 +216,24 @@ export default function Maker() {
             <div className="pop-icon">🌐</div>
             <h3>이 사이트는<br /><b>크롬(Chrome)</b>으로 접속하세요</h3>
             {chromePop === 'ok' ? (
-              <p>지금 크롬으로 잘 열려 있어요 👍<br />편지 만들기·사진 얼굴 맞춤·<b>신청서 알림</b>이 크롬에서 가장 잘 돼요.</p>
+              <p>지금은 크롬으로 잘 열려 있어요 👍<br />다른 원장님께 알려 드릴 때도 <b>크롬에서 열라고</b> 안내해 주세요.</p>
             ) : (
-              <>
-                <p>지금은 크롬이 아닌 브라우저로 열려 있어요.<br />크롬에서 열어야 <b>사진 얼굴 맞춤</b>과 <b>신청서 알림</b>이 제대로 돼요.</p>
-                <ol>
-                  <li>아래 「주소 복사」를 눌러요</li>
-                  <li>크롬을 열고 주소창에 붙여 넣어요</li>
-                </ol>
-                <div className="linkbox" style={{ textAlign: 'center' }}>{typeof window !== 'undefined' ? window.location.origin : ''}</div>
-                {chromePop === 'copied' ? <div className="ok">주소를 복사했어요. 크롬 주소창에 붙여 넣으세요.</div> : null}
-                {chromePop === 'copyfail' ? <div className="err">복사가 안 되면 위 주소를 길게 눌러 복사해 주세요.</div> : null}
-                <button className="btn green" style={{ width: '100%', marginBottom: 8 }} onClick={copySite}>주소 복사</button>
-              </>
+              <p>지금은 크롬이 아닌 브라우저로 열려 있어요.<br />크롬에서 열어야 <b>사진 얼굴 맞춤</b>과 <b>신청서 알림</b>이 제대로 돼요.</p>
             )}
-            <button className={`btn${chromePop === 'ok' ? '' : ' ghost'}`} style={{ width: '100%' }} onClick={closeChromePop}>
+            <div className="pop-steps">
+              <b>크롬으로 여는 방법</b>
+              <ol>
+                <li>아래 <b>「링크 복사」</b>를 눌러요</li>
+                <li><b>크롬</b>을 열어요</li>
+                <li>맨 위 <b>주소창</b>을 꾹 누르거나(휴대폰) 클릭해서(컴퓨터) <b>붙여넣기</b> 해요</li>
+                <li>이동하면 끝!</li>
+              </ol>
+            </div>
+            <div className="linkbox" style={{ textAlign: 'center' }}>{typeof window !== 'undefined' ? window.location.origin : ''}</div>
+            {copied === 'ok' ? <div className="ok">링크를 복사했어요! 이제 크롬 주소창에 붙여 넣으세요.</div> : null}
+            {copied === 'fail' ? <div className="err">복사가 안 되면 위 주소를 길게 눌러 복사해 주세요.</div> : null}
+            <button className="btn green" style={{ width: '100%', marginBottom: 8 }} onClick={copySite}>🔗 링크 복사</button>
+            <button className="btn ghost" style={{ width: '100%' }} onClick={closeChromePop}>
               {chromePop === 'ok' ? '확인' : '그냥 이 브라우저로 볼게요'}
             </button>
           </div>
