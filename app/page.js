@@ -28,6 +28,13 @@ const STEPS = ['시작', '기본 정보', '처음 만난 날', '자란 모습', 
 const lsGet = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
 const toggle = (arr, v) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+// 크롬인지 (엣지·웨일·삼성·카카오톡/네이버 안 브라우저 등은 아님)
+const isChrome = () => {
+  const ua = navigator.userAgent;
+  if (/Edg\/|EdgA|EdgiOS|OPR\/|Whale|SamsungBrowser|KAKAOTALK|NAVER|Line\/|DaumApps|Instagram|FBAN|FBAV|; wv\)/i.test(ua)) return false;
+  return /CriOS\//.test(ua) || (/Chrome\//.test(ua) && !!window.chrome);
+};
+const CHROME_SEEN = 'enroll.chrome.seen.v1';
 const okEmail = (e) => /^[^@\s]+@(gmail\.com|naver\.com)$/i.test(String(e || '').trim());
 
 export default function Maker() {
@@ -37,6 +44,7 @@ export default function Maker() {
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState({ err: '', ok: '' });
   const [ready, setReady] = useState(false);
+  const [chromePop, setChromePop] = useState(''); // '' 안 띄움 / 'ok' 크롬(처음 한 번) / 'no' 크롬 아님(매번)
   const [alarm, setAlarm] = useState({ on: false, busy: false, ok: '', err: '' });
   const set = (patch) => setD((prev) => ({ ...prev, ...(typeof patch === 'function' ? patch(prev) : patch) }));
 
@@ -48,6 +56,9 @@ export default function Maker() {
     setMade(lsGet(MADE_KEY) || []);
     setAlarm((a) => ({ ...a, on: !!savedSub() && typeof Notification !== 'undefined' && Notification.permission === 'granted' }));
     setReady(true);
+    // 사이트를 열면 「크롬으로 접속하세요」 안내 — 크롬이 아니면 매번, 크롬이면 처음 한 번만
+    if (!isChrome()) setChromePop('no');
+    else if (!lsGet(CHROME_SEEN)) setChromePop('ok');
   }, []);
 
   // 자동 임시저장
@@ -183,8 +194,39 @@ export default function Maker() {
     </div>
   );
 
+  const closeChromePop = () => { if (chromePop === 'ok') lsSet(CHROME_SEEN, 1); setChromePop(''); };
+  const copySite = async () => {
+    try { await navigator.clipboard.writeText(window.location.origin); setChromePop('copied'); } catch (e) { setChromePop('copyfail'); }
+  };
+
   return (
     <div className="wrap">
+      {chromePop ? (
+        <div className="pop-bg" role="dialog" aria-modal="true">
+          <div className="pop">
+            <div className="pop-icon">🌐</div>
+            <h3>이 사이트는<br /><b>크롬(Chrome)</b>으로 접속하세요</h3>
+            {chromePop === 'ok' ? (
+              <p>지금 크롬으로 잘 열려 있어요 👍<br />편지 만들기·사진 얼굴 맞춤·<b>신청서 알림</b>이 크롬에서 가장 잘 돼요.</p>
+            ) : (
+              <>
+                <p>지금은 크롬이 아닌 브라우저로 열려 있어요.<br />크롬에서 열어야 <b>사진 얼굴 맞춤</b>과 <b>신청서 알림</b>이 제대로 돼요.</p>
+                <ol>
+                  <li>아래 「주소 복사」를 눌러요</li>
+                  <li>크롬을 열고 주소창에 붙여 넣어요</li>
+                </ol>
+                <div className="linkbox" style={{ textAlign: 'center' }}>{typeof window !== 'undefined' ? window.location.origin : ''}</div>
+                {chromePop === 'copied' ? <div className="ok">주소를 복사했어요. 크롬 주소창에 붙여 넣으세요.</div> : null}
+                {chromePop === 'copyfail' ? <div className="err">복사가 안 되면 위 주소를 길게 눌러 복사해 주세요.</div> : null}
+                <button className="btn green" style={{ width: '100%', marginBottom: 8 }} onClick={copySite}>주소 복사</button>
+              </>
+            )}
+            <button className={`btn${chromePop === 'ok' ? '' : ' ghost'}`} style={{ width: '100%' }} onClick={closeChromePop}>
+              {chromePop === 'ok' ? '확인' : '그냥 이 브라우저로 볼게요'}
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="top">
         <div className="kicker">2027 재원신청서</div>
         <h1>감동의 재원신청서 만들기</h1>
