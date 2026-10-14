@@ -8,11 +8,19 @@ export default function SignaturePad({ name, onChange }) {
   const last = useRef(null);
   const [has, setHas] = useState(false);
 
+  const saved = useRef(''); // 지금까지 쓴 서명 그림 — 화면 크기가 바뀌어도 다시 그려 넣는다
+
   useEffect(() => {
     const c = ref.current;
+    let size = '';
     const fit = () => {
       const r = c.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
+      const next = `${Math.round(r.width)}x${Math.round(r.height)}@${dpr}`;
+      // 휴대폰은 손을 뗄 때 주소창이 숨거나 나타나며 resize가 자주 일어난다.
+      // 칸 크기가 그대로면 아무것도 하지 않는다(예전엔 여기서 서명이 지워졌다).
+      if (next === size) return;
+      size = next;
       c.width = Math.round(r.width * dpr);
       c.height = Math.round(r.height * dpr);
       const ctx = c.getContext('2d');
@@ -21,13 +29,15 @@ export default function SignaturePad({ name, onChange }) {
       ctx.lineJoin = 'round';
       ctx.strokeStyle = '#1f2a44';
       ctx.lineWidth = 3;
-      setHas(false);
-      onChange && onChange('');
+      if (saved.current) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0, r.width, r.height);
+        img.src = saved.current;
+      }
     };
     fit();
     window.addEventListener('resize', fit);
     return () => window.removeEventListener('resize', fit);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const pos = (e) => {
@@ -60,11 +70,13 @@ export default function SignaturePad({ name, onChange }) {
     if (!drawing.current) return;
     drawing.current = false;
     setHas(true);
-    onChange && onChange(ref.current.toDataURL('image/png'));
+    saved.current = ref.current.toDataURL('image/png');
+    onChange && onChange(saved.current);
   };
   const clear = () => {
     const c = ref.current;
     c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    saved.current = '';
     setHas(false);
     onChange && onChange('');
   };
