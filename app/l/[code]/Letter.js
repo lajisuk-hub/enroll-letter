@@ -18,6 +18,8 @@ export default function Letter({ code }) {
   const [mode, setMode] = useState('stay'); // stay: 재원 신청 / leave: 재원이 어려움(사유 답신)
   const [result, setResult] = useState({ mailed: false, url: '', note: '' });
   const timers = useRef([]);
+  const music = useRef(null);
+  const [musicOn, setMusicOn] = useState(false);
   const setF = (patch) => setForm((prev) => ({ ...prev, ...patch }));
 
   useEffect(() => {
@@ -36,8 +38,37 @@ export default function Letter({ code }) {
 
   const top = () => window.scrollTo({ top: 0, behavior: 'auto' });
 
+  // 배경음악: 휴대폰은 누르기 전엔 소리를 못 내므로 봉투를 여는 순간 시작한다
+  const playMusic = () => {
+    const a = music.current;
+    if (!a) return;
+    a.volume = 0;
+    a.play().then(() => {
+      setMusicOn(true);
+      let v = 0;
+      const fade = setInterval(() => { v = Math.min(0.6, v + 0.03); a.volume = v; if (v >= 0.6) clearInterval(fade); }, 120);
+    }).catch(() => setMusicOn(false));
+  };
+  const toggleMusic = () => {
+    const a = music.current;
+    if (!a) return;
+    if (a.paused) { a.volume = 0.6; a.play().then(() => setMusicOn(true)).catch(() => {}); }
+    else { a.pause(); setMusicOn(false); }
+  };
+  // 다른 앱으로 넘어가면 잠시 멈췄다가 돌아오면 이어서
+  useEffect(() => {
+    const onVis = () => {
+      const a = music.current;
+      if (!a || !musicOn) return;
+      if (document.hidden) a.pause(); else a.play().catch(() => {});
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [musicOn]);
+
   const openLetter = () => {
     if (opening) return;
+    playMusic();
     setOpening(true);
     setTimeout(() => { setScene('film'); top(); startReveal(); }, 3000);
   };
@@ -88,6 +119,12 @@ export default function Letter({ code }) {
 
   return (
     <>
+      <audio ref={music} src="/music/gentle-inspiring-piano.mp3" loop preload="auto" />
+      {opening ? (
+        <button className="music-btn" onClick={toggleMusic} aria-label={musicOn ? '음악 끄기' : '음악 켜기'}>
+          {musicOn ? '🔊' : '🔇'}
+        </button>
+      ) : null}
       {scene === 'arrive' && (
         <div className={`stage arrive${opening ? ' is-opening' : ''}`}>
           {[...Array(9)].map((_, i) => (
