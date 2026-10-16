@@ -39,20 +39,34 @@ export default function Letter({ code }) {
   const top = () => window.scrollTo({ top: 0, behavior: 'auto' });
 
   // 배경음악: 휴대폰은 누르기 전엔 소리를 못 내므로 봉투를 여는 순간 시작한다
+  // 처음 15초는 작게(0.2) 깔리다가 15~22초에 걸쳐 0.6까지 천천히 커진다.
+  // 아이폰은 audio.volume을 무시하므로 Web Audio의 gain으로 크기를 조절한다.
   const playMusic = () => {
     const a = music.current;
     if (!a) return;
-    a.volume = 0;
-    a.play().then(() => {
-      setMusicOn(true);
-      let v = 0;
-      const fade = setInterval(() => { v = Math.min(0.6, v + 0.03); a.volume = v; if (v >= 0.6) clearInterval(fade); }, 120);
-    }).catch(() => setMusicOn(false));
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
+      const gain = ctx.createGain();
+      ctx.createMediaElementSource(a).connect(gain).connect(ctx.destination);
+      const t = ctx.currentTime;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.2, t + 2);
+      gain.gain.setValueAtTime(0.2, t + 15);
+      gain.gain.linearRampToValueAtTime(0.6, t + 22);
+      ctx.resume();
+      a.dataset.gain = 'web-audio';
+      a._gain = gain; // 시험 때 현재 크기를 확인하는 용도
+    } catch (e) {
+      a.volume = 0.2;
+      setTimeout(() => { let v = 0.2; const up = setInterval(() => { v = Math.min(0.6, v + 0.02); a.volume = v; if (v >= 0.6) clearInterval(up); }, 350); }, 15000);
+    }
+    a.play().then(() => setMusicOn(true)).catch(() => setMusicOn(false));
   };
   const toggleMusic = () => {
     const a = music.current;
     if (!a) return;
-    if (a.paused) { a.volume = 0.6; a.play().then(() => setMusicOn(true)).catch(() => {}); }
+    if (a.paused) { a.play().then(() => setMusicOn(true)).catch(() => {}); }
     else { a.pause(); setMusicOn(false); }
   };
   // 다른 앱으로 넘어가면 잠시 멈췄다가 돌아오면 이어서
